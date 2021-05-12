@@ -93,9 +93,7 @@ Tensor& linalg_det_out(const Tensor& self, Tensor& out) {
 }
 
 Tensor linalg_det(const Tensor& self) {
-  auto out = at::empty({0}, self.options());
-  at::native::linalg_det_out(self, out);
-  return out;
+  return std::get<0>(at::native::_det_lu_based_helper(self));
 }
 
 Tensor logdet(const Tensor& self) {
