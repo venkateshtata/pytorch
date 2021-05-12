@@ -49,6 +49,29 @@ static inline std::tuple<Tensor, Tensor> _lu_det_P_diag_U(const Tensor& self) {
   return std::tuple<Tensor, Tensor>(num_exchanges.mul_(-2).add_(1), u_diagonal);
 }
 
+// Given a pivoted LU factorization A = P L U,
+// det(A) = det(P) * det(L) * det(U).
+// Since det(P) = +- 1 (even or odd permutation), and diag(L) = I, we get that
+// det(A) = (parity of P) * prod(diag(U))
+static inline std::tuple<Tensor, Tensor, Tensor, Tensor> _det_lu_based_helper(const Tensor& self) {
+  Tensor lu, pivs, infos;
+  std::tie(lu, pivs, infos) = at::_lu_with_info(self, /*pivot=*/true, /*check_errors*/false);
+  TORCH_CHECK(infos.ge(0).all().item<uint8_t>(), "at::_det_lu_based_helper(): Invalid argument passed to LU");
+
+  Tensor p, l, u;
+  std::tie(p, l, u) = at::lu_unpack(lu, pivs, /*unpack_data=*/true, /*unpack_pivots=*/true);
+
+  // find the parity of p
+  auto n = self.size(-1);
+  auto n_transpositions_mod_2 = (at::arange(1, n + 1, pivs.options()) != pivs)
+    .sum(-1, /*keepdim=*/false, /*dtype=*/at::kLong).fmod_(2);
+  auto p_parity = n_transpositions_mod_2.mul_(-2).add_(1);
+
+  auto det = p_parity * at::prod(u.diagonal(0, -2, -1), /*dim=*/-1);
+
+  return std::make_tuple(det, p, l, u);
+}
+
 // torch.det, alias for torch.linalg.det
 Tensor det(const Tensor& self) {
   return at::linalg_det(self);
@@ -64,12 +87,8 @@ Tensor& linalg_det_out(const Tensor& self, Tensor& out) {
   IntArrayRef out_sizes(self.sizes().data(), self.dim() - 2);
   at::native::resize_output(out, out_sizes);
 
-  Tensor det_P, diag_U;
-  std::tie(det_P, diag_U) = _lu_det_P_diag_U(self);
-  // complete_det is 0 when U is singular (U(i, i) = 0 for some i in [1, self.size(-1)]).
-  // The product accumulation takes care of this case, and hence no special case handling is required.
-  at::prod_out(out, diag_U, -1);
-  out.mul_(det_P);
+  auto det = std::get<0>(_det_lu_based_helper(self));
+  out.copy_(det);
   return out;
 }
 
