@@ -2488,6 +2488,8 @@ Tensor linalg_qr_backward(const std::vector<torch::autograd::Variable> &grads, c
   }
 }
 
+// The backward for this function is just a specialized version of
+// lu.backward, which is implemented in /torch/_autograd_functions.py
 Tensor _det_lu_based_helper_backward(
   const Tensor& det_grad,
   const Tensor& self,
@@ -2499,7 +2501,36 @@ Tensor _det_lu_based_helper_backward(
   if (!det_grad.defined()) {
     return at::zeros_like(self, at::MemoryFormat::Contiguous);
   }
-  return at::matmul(l, u);
+  auto u_h = u.transpose(-2, -1).conj();
+  auto u_h_diag = u_h.diagonal(0, -2, -1);
+  auto u_h_conditioned = at::where(
+    u_h_diag == 0.0,
+    at::native::_get_epsilon(c10::toValueType(self.scalar_type())),
+    u_h_diag
+  );
+  u_h_diag.copy_(u_h_conditioned);
+
+  auto l_h = l.transpose(-2, -1).conj();
+
+  // create a matrix d := det_grad * det.conj() * I
+  // NOTE: we do not use diag_embed as matrix d has to be fully
+  // materialized prior to its usage in triangular_solve below
+  auto d = at::zeros_like(self);
+  d.diagonal(0, -2, -1).copy_(det_grad * det.conj());
+
+  // permuted_grad := l_h^{-1} d u_h^{-1}, similar to lu.backward
+  auto permuted_grad = std::get<0>(
+    at::triangular_solve(
+      // note that d = c I for some scalar c, hence
+      // d u_h^{-1} = c I u_h^{-1} = u_h^{-1} c I = u_h^{-1} d,
+      // so, there is no need to explicitly transpose the solution below
+      std::get<0>(at::triangular_solve(d, u_h, /*upper=*/false)),
+      l_h
+    )
+  );
+
+  // multiply by p to restore the row order
+  return at::matmul(p, permuted_grad);
 }
 
 // Invertible case is derived from Jacobi's formula, and also can be found at:
