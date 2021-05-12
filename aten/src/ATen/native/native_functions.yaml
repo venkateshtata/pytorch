@@ -9518,13 +9518,9 @@
 - func: linalg_det(Tensor self) -> Tensor
   python_module: linalg
   variants: function
-  dispatch:
-    CompositeExplicitAutograd: linalg_det
 
 - func: linalg_det.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
   python_module: linalg
-  dispatch:
-    CompositeExplicitAutograd: linalg_det_out
 
 # torch.det, alias for torch.linalg.det
 - func: det(Tensor self) -> Tensor
