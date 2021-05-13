@@ -237,8 +237,8 @@ Tensor lu_unpack_backward(
 );
 Tensor _det_lu_based_helper_backward(
   const Tensor& det_grad,
-  const Tensor& self,
   const Tensor& det,
+  const Tensor& self,
   const Tensor& p,
   const Tensor& l,
   const Tensor& u

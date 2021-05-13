@@ -2492,8 +2492,8 @@ Tensor linalg_qr_backward(const std::vector<torch::autograd::Variable> &grads, c
 // lu.backward, which is implemented in /torch/_autograd_functions.py
 Tensor _det_lu_based_helper_backward(
   const Tensor& det_grad,
-  const Tensor& self,
   const Tensor& det,
+  const Tensor& self,
   const Tensor& p,
   const Tensor& l,
   const Tensor& u
