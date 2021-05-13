@@ -2508,7 +2508,7 @@ Tensor _det_lu_based_helper_backward(
   auto u_h = u.transpose(-2, -1).conj();
   auto u_h_diag = u_h.diagonal(0, -2, -1);
   auto u_h_conditioned = at::where(
-    u_h_diag == 0.0,
+    u_h_diag.abs() == 0.0,
     at::tensor(eps, self.options()),
     u_h_diag
   );
