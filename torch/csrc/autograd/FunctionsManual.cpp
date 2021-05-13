@@ -2501,11 +2501,15 @@ Tensor _det_lu_based_helper_backward(
   if (!det_grad.defined()) {
     return at::zeros_like(self, at::MemoryFormat::Contiguous);
   }
+
+  auto eps = at::native::_get_epsilon(c10::toValueType(self.scalar_type()));
+  auto n = self.size(-1);
+
   auto u_h = u.transpose(-2, -1).conj();
   auto u_h_diag = u_h.diagonal(0, -2, -1);
   auto u_h_conditioned = at::where(
     u_h_diag == 0.0,
-    at::tensor(at::native::_get_epsilon(c10::toValueType(self.scalar_type())), self.options()),
+    at::tensor(eps, self.options()),
     u_h_diag
   );
   u_h_diag.copy_(u_h_conditioned);
@@ -2514,7 +2518,7 @@ Tensor _det_lu_based_helper_backward(
 
   // create a matrix d := det_grad * det.conj() * I
   auto det_expanded_sizes = det.sizes().vec();
-  det_expanded_sizes.push_back(self.size(-1));
+  det_expanded_sizes.push_back(n);
   auto d = at::diag_embed((det_grad * det.conj()).unsqueeze(-1).expand(det_expanded_sizes));
 
   // permuted_grad := l_h^{-1} d u_h^{-1}, similar to lu.backward
