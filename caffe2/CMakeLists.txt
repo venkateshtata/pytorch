@@ -96,9 +96,15 @@ if(INTERN_BUILD_ATEN_OPS)
   list(APPEND Caffe2_HIP_INCLUDE ${ATen_HIP_INCLUDE})
   list(APPEND Caffe2_VULKAN_INCLUDE ${ATen_VULKAN_INCLUDE})
   list(APPEND Caffe2_DEPENDENCY_LIBS ${ATen_CPU_DEPENDENCY_LIBS})
-  list(APPEND Caffe2_CUDA_DEPENDENCY_LIBS ${ATen_CUDA_DEPENDENCY_LIBS})
-  list(APPEND Caffe2_HIP_DEPENDENCY_LIBS ${ATen_HIP_DEPENDENCY_LIBS})
   list(APPEND Caffe2_DEPENDENCY_INCLUDE ${ATen_THIRD_PARTY_INCLUDE})
+  # Move ATEN CUDA dependencies ahead of standard one to ensure
+  # Correct link order for static linking
+  if(ATen_CUDA_DEPENDENCY_LIBS)
+    list(INSERT Caffe2_CUDA_DEPENDENCY_LIBS 0 ${ATen_CUDA_DEPENDENCY_LIBS})
+  endif()
+  if(ATen_HIP_DEPENDENCY_LIBS)
+    list(INSERT Caffe2_HIP_DEPENDENCY_LIBS 0 ${ATen_HIP_DEPENDENCY_LIBS})
+  endif()
 endif()
 
 # ---[ Caffe2 build
