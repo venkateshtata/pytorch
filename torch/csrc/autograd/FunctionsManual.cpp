@@ -2634,7 +2634,7 @@ Tensor _det_lu_based_helper_backward(
       // note that d = c I for some scalar c, hence
       // d u_h^{-1} = c I u_h^{-1} = u_h^{-1} c I = u_h^{-1} d,
       // so, there is no need to explicitly transpose the solution below
-      std::get<0>(at::triangular_solve(d, u_h, /*upper=*/false, /*transpose=*/false, /*unitriangular=*/true)),
+      std::get<0>(at::triangular_solve(d, u_h, /*upper=*/false)),
       l_h
     )
   );
