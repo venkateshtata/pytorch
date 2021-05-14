@@ -1157,8 +1157,7 @@ if(USE_CUDA)
     # A helper variable recording the list of Caffe2 dependent libraries
     # torch::cudart is dealt with separately, due to CUDA_ADD_LIBRARY
     # design reason (it adds CUDA_LIBRARIES itself).
-    set(Caffe2_PUBLIC_CUDA_DEPENDENCY_LIBS
-      caffe2::cufft caffe2::curand caffe2::cublas)
+    set(Caffe2_PUBLIC_CUDA_DEPENDENCY_LIBS caffe2::cufft caffe2::curand)
     if(CAFFE2_USE_NVRTC)
       list(APPEND Caffe2_PUBLIC_CUDA_DEPENDENCY_LIBS caffe2::cuda caffe2::nvrtc)
     else()
@@ -1174,6 +1173,9 @@ if(USE_CUDA)
     else()
       caffe2_update_option(USE_TENSORRT OFF)
     endif()
+    # cuBLAS dependency must be added after cuDNN to avoid
+    # linking spurious unused symbols even if neither cublas nor cudnn are used
+    list(APPEND Caffe2_PUBLIC_CUDA_DEPDENCY_LIBS  caffe2::cublas)
   else()
     message(WARNING
       "Not compiling with CUDA. Suppress this warning with "
