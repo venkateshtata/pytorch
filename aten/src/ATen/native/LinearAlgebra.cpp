@@ -68,10 +68,6 @@ static inline std::tuple<Tensor, Tensor> _lu_det_P_diag_U(const Tensor& self) {
 // Since det(P) = +- 1 (even or odd permutation), and diag(L) = I, we get that
 // det(A) = ([is P odd] * -2 + 1) * prod(diag(U))
 std::tuple<Tensor, Tensor, Tensor, Tensor> _det_lu_based_helper(const Tensor& self) {
-  squareCheckInputs(self);
-  TORCH_CHECK((at::isFloatingType(self.scalar_type()) || at::isComplexType(self.scalar_type())),
-              "Expected a floating point or complex tensor as input");
-
   Tensor lu, pivs, infos;
   std::tie(lu, pivs, infos) = at::native::_lu_with_info(self, /*pivot=*/true, /*check_errors*/false);
   TORCH_CHECK(infos.ge(0).all().item<uint8_t>(), "at::_det_lu_based_helper(): Invalid argument passed to LU");
@@ -111,6 +107,10 @@ Tensor& linalg_det_out(const Tensor& self, Tensor& out) {
 }
 
 Tensor linalg_det(const Tensor& self) {
+  squareCheckInputs(self);
+  TORCH_CHECK((at::isFloatingType(self.scalar_type()) || at::isComplexType(self.scalar_type())),
+              "Expected a floating point or complex tensor as input");
+
   return std::get<0>(at::_det_lu_based_helper(self));
 }
 

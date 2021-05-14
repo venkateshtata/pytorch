@@ -2614,12 +2614,12 @@ Tensor _det_lu_based_helper_backward(
 
   auto u_h = u.transpose(-2, -1).conj();
   auto u_h_diag = u_h.diagonal(0, -2, -1);
-  auto u_h_conditioned = at::where(
+  auto u_h_diag_conditioned = at::where(
     u_h_diag == 0.0,
     at::tensor(eps, self.options()),
     u_h_diag
   );
-  u_h_diag.copy_(u_h_conditioned);
+  u_h_diag.copy_(u_h_diag_conditioned);
 
   auto l_h = l.transpose(-2, -1).conj();
 
@@ -2634,7 +2634,7 @@ Tensor _det_lu_based_helper_backward(
       // note that d = c I for some scalar c, hence
       // d u_h^{-1} = c I u_h^{-1} = u_h^{-1} c I = u_h^{-1} d,
       // so, there is no need to explicitly transpose the solution below
-      std::get<0>(at::triangular_solve(d, u_h, /*upper=*/false)),
+      std::get<0>(at::triangular_solve(d, u_h, /*upper=*/false, /*transpose=*/false, /*unitriangular=*/true)),
       l_h
     )
   );
