@@ -4781,6 +4781,7 @@ op_db: List[OpInfo] = [
                # linalg.det requries a custom double backward method to make gradgradcheck pass
                # TODO(@nikitaved): implement double backward for torch.linalg.det
                SkipInfo('TestGradients', 'test_fn_gradgrad'),
+               SkipInfo('TestCommon', 'test_variant_consistency_jit'),
            )),
     OpInfo('linalg.det',
            op=torch.linalg.det,
@@ -4793,7 +4794,10 @@ op_db: List[OpInfo] = [
            decorators=[skipCUDAIfNoMagma, skipCPUIfNoLapack, skipCUDAIfRocm],
            supports_inplace_autograd=False,
            skips=(
+               # linalg.det requries a custom double backward method to make gradgradcheck pass
+               # TODO(@nikitaved): implement double backward for torch.linalg.det
                SkipInfo('TestGradients', 'test_fn_gradgrad'),
+               SkipInfo('TestCommon', 'test_variant_consistency_jit'),
                # This test fails because singular inputs cannot be reliably
                # generated unless we're using double types
                SkipInfo('TestOpInfo', 'test_unsupported_dtypes'),
