@@ -519,6 +519,11 @@ def sample_inputs_linalg_det_singular(op_info, device, dtype, requires_grad):
                     a[a.eq(0)] = hi
                     b[b.eq(0)] = hi
 
+                # NOTE: LU is less stable than the SVD used previously,
+                # hence we rescale the input for better stability
+                a /= 10
+                b /= 10
+
                 matrix = a @ b
 
                 # Ensure that the rank is actually what we wanted
