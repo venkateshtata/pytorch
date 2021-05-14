@@ -2595,62 +2595,6 @@ Tensor linalg_qr_backward(const std::vector<torch::autograd::Variable> &grads, c
   }
 }
 
-// Invertible case is derived from Jacobi's formula, and also can be found at:
-// http://eprints.maths.ox.ac.uk/1079/1/NA-08-01.pdf
-Tensor linalg_det_backward(const Tensor & grad, const Tensor& self, const Tensor& det) {
-  auto singular_case_backward = [&](const Tensor& grad, const Tensor& self, const Tensor& det) -> Tensor {
-    Tensor u, sigma, vh;
-    std::tie(u, sigma, vh) = at::linalg_svd(self, false);
-    Tensor v = vh.conj().transpose(-2, -1);
-    auto gsigma = prod_backward(grad.unsqueeze(-1), sigma, det.unsqueeze(-1));
-    return svd_backward({{}, gsigma, {}}, self, true, true, u, sigma, v);
-  };
-
-  auto nonsingular_case_backward = [&](const Tensor& grad, const Tensor& self, const Tensor& det) -> Tensor {
-    return unsqueeze_multiple(grad * det, {-1, -2}, self.dim()) * self.inverse().transpose(-2, -1);
-  };
-
-  if (self.dim() == 2) {
-    if (det.item<double>() == 0) {
-      return singular_case_backward(grad, self, det);
-    } else {
-      return nonsingular_case_backward(grad, self, det);
-    }
-  } else {
-    auto nonzero_det_indices = at::native::toListOfOptionalTensors(at::where(det));
-    c10::optional<Tensor> first_nonzero_det_index = nonzero_det_indices[0];
-
-    if (first_nonzero_det_index->size(0) == det.numel()) {  // all determinants are nonzero (non-singular)
-      return nonsingular_case_backward(grad, self, det);
-    }
-
-    auto zero_det_indices = at::native::toListOfOptionalTensors(at::where(det == 0));
-    c10::optional<Tensor> first_zero_det_index = zero_det_indices[0];
-
-    if (first_zero_det_index->size(0) == det.numel()) {  // all determinants are zero (singular)
-      return singular_case_backward(grad, self, det);
-    }
-
-    Tensor grad_det = at::empty_like(self, LEGACY_CONTIGUOUS_MEMORY_FORMAT);
-
-    // invertible case
-    grad_det.index_put_(/*indices=*/nonzero_det_indices,
-                        // NOLINTNEXTLINE(bugprone-argument-comment)
-                        /*value=*/nonsingular_case_backward(grad.index(nonzero_det_indices),
-                                                            self.index(nonzero_det_indices),
-                                                            det.index(nonzero_det_indices)));
-
-    // non-invertible case, uses SVD
-    grad_det.index_put_(/*indices=*/zero_det_indices,
-                        // NOLINTNEXTLINE(bugprone-argument-comment)
-                        /*value=*/singular_case_backward(grad.index(zero_det_indices),
-                                                         self.index(zero_det_indices),
-                                                         det.index(zero_det_indices)));
-
-    return grad_det;
-  }
-}
-
 Tensor logdet_backward(const Tensor & grad, const Tensor& self, const Tensor& logdet) {
   auto singular_case_backward = [&](const Tensor& grad, const Tensor& self) -> Tensor {
     Tensor u, sigma, vh;
