@@ -4778,14 +4778,6 @@ op_db: List[OpInfo] = [
            decorators=[skipCUDAIfNoMagma, skipCPUIfNoLapack],
            supports_inplace_autograd=False,
            skips=(
-               # The following tests fail only on ROCm. This is probably
-               # related to the fact that the current linalg.det backward is
-               # unstable if the matrix has repeated singular values, see
-               # https://github.com/pytorch/pytorch/issues/53364
-               SkipInfo('TestGradients', 'test_fn_grad', device_type='cuda',
-                        dtypes=(torch.float64,), active_if=TEST_WITH_ROCM),
-               SkipInfo('TestCommon', 'test_variant_consistency_jit', device_type='cuda',
-                        dtypes=(torch.float64, torch.float32), active_if=TEST_WITH_ROCM),
                # linalg.det requries a custom double backward method to make gradgradcheck pass
                # TODO(@nikitaved): implement double backward for torch.linalg.det
                SkipInfo('TestGradients', 'test_fn_gradgrad'),
