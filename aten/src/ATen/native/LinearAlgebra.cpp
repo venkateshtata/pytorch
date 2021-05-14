@@ -52,8 +52,12 @@ static inline std::tuple<Tensor, Tensor> _lu_det_P_diag_U(const Tensor& self) {
 // Given a pivoted LU factorization A = P L U,
 // det(A) = det(P) * det(L) * det(U).
 // Since det(P) = +- 1 (even or odd permutation), and diag(L) = I, we get that
-// det(A) = (parity of P) * prod(diag(U))
+// det(A) = ([is P odd] * -2 + 1) * prod(diag(U))
 std::tuple<Tensor, Tensor, Tensor, Tensor> _det_lu_based_helper(const Tensor& self) {
+  squareCheckInputs(self);
+  TORCH_CHECK((at::isFloatingType(self.scalar_type()) || at::isComplexType(self.scalar_type())),
+              "Expected a floating point or complex tensor as input");
+
   Tensor lu, pivs, infos;
   std::tie(lu, pivs, infos) = at::native::_lu_with_info(self, /*pivot=*/true, /*check_errors*/false);
   TORCH_CHECK(infos.ge(0).all().item<uint8_t>(), "at::_det_lu_based_helper(): Invalid argument passed to LU");
@@ -61,13 +65,13 @@ std::tuple<Tensor, Tensor, Tensor, Tensor> _det_lu_based_helper(const Tensor& se
   Tensor p, l, u;
   std::tie(p, l, u) = at::lu_unpack(lu, pivs, /*unpack_data=*/true, /*unpack_pivots=*/true);
 
-  // find the parity of p
+  // find det(P)
   auto n = self.size(-1);
   auto n_transpositions_mod_2 = (at::arange(1, n + 1, pivs.options()) != pivs)
     .sum(-1, /*keepdim=*/false, /*dtype=*/at::kLong).fmod_(2);
-  auto p_parity = n_transpositions_mod_2.mul_(-2).add_(1);
+  auto p_det = n_transpositions_mod_2.mul_(-2).add_(1);
 
-  auto det = p_parity * at::prod(u.diagonal(0, -2, -1), /*dim=*/-1);
+  auto det = p_det * at::prod(u.diagonal(0, -2, -1), /*dim=*/-1);
 
   return std::make_tuple(det, p, l, u);
 }
