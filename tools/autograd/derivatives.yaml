@@ -414,6 +414,14 @@
   self: _det_lu_based_helper_backward(grad, det, self, p, l, u)
   output_differentiability: [True, False, False, False]
 
+- name: _det_lu_based_helper_backward(Tensor grad_det, Tensor det, Tensor self, Tensor p, Tensor l, Tensor u) -> Tensor
+  grad_det: not_implemented("_det_lu_based_helper_backward", "torch.{linalg.}det does not support double differentiation yet")
+  det: not_implemented("_det_lu_based_helper_backward", "torch.{linalg.}det does not support double differentiation yet")
+  self: not_implemented("_det_lu_based_helper_backward", "torch.{linalg.}det does not support double differentiation yet")
+  p: not_implemented("_det_lu_based_helper_backward", "torch.{linalg.}det does not support double differentiation yet")
+  l: not_implemented("_det_lu_based_helper_backward", "torch.{linalg.}det does not support double differentiation yet")
+  u: not_implemented("_det_lu_based_helper_backward", "torch.{linalg.}det does not support double differentiation yet")
+
 - name: diag(Tensor self, int diagonal=0) -> Tensor
   self: diag_backward(grad, self.sizes(), diagonal)
 

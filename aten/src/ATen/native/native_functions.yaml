@@ -9550,6 +9550,11 @@
   dispatch:
     CPU, CUDA: _det_lu_based_helper
 
+- func: _det_lu_based_helper_backward(Tensor grad_det, Tensor det, Tensor self, Tensor p, Tensor l, Tensor u) -> Tensor
+  variants: function
+  dispatch:
+    CPU, CUDA: _det_lu_based_helper_backward
+
 - func: linalg_lstsq(Tensor self, Tensor b, float? rcond=None, *, str? driver=None) -> (Tensor solution, Tensor residuals, Tensor rank, Tensor singular_values)
   python_module: linalg
   variants: function
