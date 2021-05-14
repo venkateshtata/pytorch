@@ -69,7 +69,7 @@ static inline std::tuple<Tensor, Tensor> _lu_det_P_diag_U(const Tensor& self) {
 // det(A) = ([is P odd] * -2 + 1) * prod(diag(U))
 std::tuple<Tensor, Tensor, Tensor, Tensor> _det_lu_based_helper(const Tensor& self) {
   Tensor lu, pivs, infos;
-  std::tie(lu, pivs, infos) = at::native::_lu_with_info(self, /*pivot=*/true, /*check_errors*/false);
+  std::tie(lu, pivs, infos) = at::_lu_with_info(self, /*pivot=*/true, /*check_errors*/false);
   TORCH_CHECK(infos.ge(0).all().item<uint8_t>(), "at::_det_lu_based_helper(): Invalid argument passed to LU");
 
   Tensor p, l, u;
