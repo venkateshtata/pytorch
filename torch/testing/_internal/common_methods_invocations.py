@@ -4801,10 +4801,10 @@ op_db: List[OpInfo] = [
            decorators=[skipCUDAIfNoMagma, skipCPUIfNoLapack, skipCUDAIfRocm],
            supports_inplace_autograd=False,
            skips=(
-                SkipInfo('TestGradients', 'test_fn_gradgrad'),
-                # This test fails because singular inputs cannot be reliably
-                # generated unless we're using double types
-                SkipInfo('TestOpInfo', 'test_unsupported_dtypes'),
+               SkipInfo('TestGradients', 'test_fn_gradgrad'),
+               # This test fails because singular inputs cannot be reliably
+               # generated unless we're using double types
+               SkipInfo('TestOpInfo', 'test_unsupported_dtypes'),
            )),
     OpInfo('linalg.cholesky',
            aten_name='linalg_cholesky',
