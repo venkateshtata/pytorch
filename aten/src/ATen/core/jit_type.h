@@ -240,6 +240,10 @@ struct TORCH_API ShapeSymbol {
     return value_;
   };
 
+  int64_t value() const {
+    return value_;
+  };
+
   static ShapeSymbol newSymbol() {
     return fromStaticSize(-static_cast<int64_t>(++num_symbols));
   };
@@ -1476,6 +1480,7 @@ enum class TypeVerbosity {
   Type,
   TypeAndStride,
   Full,
+  Symbolic,
   Default = Full,
 };
 
