@@ -1,0 +1,14 @@
+{
+    "AverageCpuParameterServer": {
+        "ps_class": "AverageParameterServer",
+        "configurations": {
+            "use_cuda_rpc": false
+        }
+    },
+    "AverageCudaParameterServer": {
+        "ps_class": "AverageParameterServer",
+        "configurations": {
+            "use_cuda_rpc": true
+        }
+    }
+}

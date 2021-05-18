@@ -19,9 +19,9 @@ from metrics.ProcessedMetricsPrinter import ProcessedMetricsPrinter
 USE_CUDA_RPC = "use_cuda_rpc"
 
 
-def get_name(rank, configs):
-    t_count = configs.trainer_count
-    ps_count = configs.ps_count
+def get_name(rank, config):
+    t_count = config.trainer_count
+    ps_count = config.ps_count
     if rank < t_count:
         return f"trainer{rank}"
     elif rank < (t_count + ps_count):
@@ -30,30 +30,31 @@ def get_name(rank, configs):
         return "master"
 
 
-def get_parameter_server_rank(rank, config):
+def get_ps_rank(rank, config):
     # rank mod parameter server count to get parameter server number
     # add trainer_count to get parameter server rank
     rank_mod_ps_count = rank % config.ps_count
     return rank_mod_ps_count + config.trainer_count
 
 
-def get_ps_rref(parameter_server_rank, config):
+def get_ps_rref(ps_rank, config):
     ps_config = config.ps_config
     ps = get_benchmark_ps_map()[str(ps_config["ps_class"])]
     name = get_name(
-        parameter_server_rank,
+        ps_rank,
         config
     )
     ps_args = ps_config["configurations"].values()
-    ps_trainer_count = config.trainer_count / ps_config.ps_count
-    rem = config.trainer_count % ps_config.ps_count
-    if parameter_server_rank - config.trainer_count < rem:
+    ps_trainer_count = config.trainer_count / config.ps_count
+    rem = config.trainer_count % config.ps_count
+    if ps_rank - config.trainer_count < rem:
         ps_trainer_count += 1
+    ps_trainer_count = int(ps_trainer_count)
     return rpc.remote(
         name,
         ps,
         args=(
-            parameter_server_rank,
+            ps_rank,
             ps_trainer_count,
             *ps_args,
         ),
@@ -77,7 +78,7 @@ def run_trainer(
     return [rank, metrics]
 
 
-def call_trainers(config, model, train_data, parameter_server_rrefs):
+def call_trainers(config, model, train_data, ps_rrefs):
     futs = []
     for trainer_rank in range(0, config.trainer_count):
         trainer_name = get_name(
@@ -85,9 +86,9 @@ def call_trainers(config, model, train_data, parameter_server_rrefs):
             config
         )
         ps_rref = None
-        if parameter_server_rrefs:
-            ps_rank = get_parameter_server_rank(trainer_rank, config)
-            ps_rref = parameter_server_rrefs[ps_rank]
+        if ps_rrefs:
+            ps_rank = get_ps_rank(trainer_rank, config)
+            ps_rref = ps_rrefs[ps_rank]
         fut = rpc.rpc_async(
             trainer_name,
             run_trainer,
@@ -105,15 +106,15 @@ def call_trainers(config, model, train_data, parameter_server_rrefs):
 
 
 def benchmark_warmup(
-    config, model, data, parameter_server_rrefs
+    config, model, data, ps_rrefs
 ):
     if config.ps_count > 0:
         ps_config = config.ps_config
         ps = get_benchmark_ps_map()[str(ps_config["ps_class"])]
-    futs = call_trainers(config, model, data, parameter_server_rrefs)
+    futs = call_trainers(config, model, data, ps_rrefs)
     for fut in futs:
         fut.wait()
-    for ps_rref in parameter_server_rrefs.values():
+    for ps_rref in ps_rrefs.values():
         rpc.rpc_sync(
             ps_rref.owner(),
             ps.reset_state,
@@ -124,6 +125,21 @@ def benchmark_warmup(
 
 def split_list(arr, n):
     return [arr[i::n] for i in range(n)]
+
+
+def get_ps_metrics(config, ps_rrefs):
+    rank_metrics = []
+    if config.ps_count > 0:
+        ps_config = config.ps_config
+        ps = get_benchmark_ps_map()[str(ps_config["ps_class"])]
+        for rank, ps_rref in ps_rrefs.items():
+            metrics = rpc.rpc_sync(
+                ps_rref.owner(),
+                ps.get_metrics_rpc,
+                args=(ps_rref,)
+            )
+            rank_metrics.append([rank, metrics])
+    return rank_metrics
 
 
 def run_master(rank, model, data, config, rpc_backend_options):
@@ -137,11 +153,11 @@ def run_master(rank, model, data, config, rpc_backend_options):
         world_size=world_size,
         rpc_backend_options=rpc_backend_options
     )
-    parameter_server_rrefs = {}
+    ps_rrefs = {}
     for i in range(
         config.trainer_count, world_size - 1
     ):
-        parameter_server_rrefs[i] = get_ps_rref(i, config)
+        ps_rrefs[i] = get_ps_rref(i, config)
 
     train_data = split_list(
         list(DataLoader(data, batch_size=config.batch_size)),
@@ -150,16 +166,18 @@ def run_master(rank, model, data, config, rpc_backend_options):
 
     # warmup run the benchmark
     benchmark_warmup(
-        config, model, train_data, parameter_server_rrefs
+        config, model, train_data, ps_rrefs
     )
     # run the benchmark
     trainer_futs = call_trainers(
-        config, model, train_data, parameter_server_rrefs
+        config, model, train_data, ps_rrefs
     )
     # collect metrics and print
     metrics_printer = ProcessedMetricsPrinter()
     rank_metrics_list = [fut.wait() for fut in trainer_futs]
     metrics_printer.print_metrics("trainer", rank_metrics_list)
+    rank_metrics_list = get_ps_metrics(config, ps_rrefs)
+    metrics_printer.print_metrics("parameter server", rank_metrics_list)
 
 
 def run_benchmark(rank, model, data, config):
@@ -168,7 +186,6 @@ def run_benchmark(rank, model, data, config):
     os.environ['MASTER_ADDR'] = config.master_addr
     os.environ['MASTER_PORT'] = config.master_port
     rpc_backend_options = TensorPipeRpcBackendOptions()
-    rpc_backend_options.init_method = config.rpc_init_method
     if rank == world_size - 1:
         # master = [trainer_count + parameter_server_count, trainer_count + parameter_server_count]
         run_master(rank, model, data, config, rpc_backend_options)
@@ -185,22 +202,23 @@ def run_benchmark(rank, model, data, config):
         )
     else:
         # trainers = [0, trainer_count)
-        trainer_config = config.trainer_config
-        ps_config = config.ps_config
-        if (USE_CUDA_RPC in trainer_config and
-            trainer_config[USE_CUDA_RPC] and
-            USE_CUDA_RPC in ps_config and
-            ps_config[USE_CUDA_RPC] and
-                config.ps_count > 0):
-            ps_rank = get_parameter_server_rank(rank, config)
-            ps_name = get_name(
-                ps_rank,
-                config
-            )
-            rpc_backend_options.set_device_map(
-                ps_name,
-                {rank: ps_rank}
-            )
+        trainer_configs = config.trainer_config["configurations"]
+        if config.ps_count > 0:
+            ps_configs = config.ps_config["configurations"]
+            if (USE_CUDA_RPC in trainer_configs and
+                trainer_configs[USE_CUDA_RPC] and
+                USE_CUDA_RPC in ps_configs and
+                ps_configs[USE_CUDA_RPC] and
+                    config.ps_count > 0):
+                ps_rank = get_ps_rank(rank, config)
+                ps_name = get_name(
+                    ps_rank,
+                    config
+                )
+                rpc_backend_options.set_device_map(
+                    ps_name,
+                    {rank: ps_rank}
+                )
         trainer_name = get_name(
             rank,
             config
