@@ -29,3 +29,11 @@ def test_ddp_cpu_sparse_rpc_nccl_allreduce():
 
 def test_ddp_cuda_sparse_rpc_nccl_allreduce():
     run_script("ddp_cuda_sparse_rpc_nccl_allreduce.sh")
+
+
+def test_ddp_batch_cpu_sparse_rpc_nccl_allreduce():
+    run_script("ddp_batch_cpu_sparse_rpc_nccl_allreduce.sh")
+
+
+def test_ddp_batch_cuda_sparse_rpc_nccl_allreduce():
+    run_script("ddp_batch_cuda_sparse_rpc_nccl_allreduce.sh")

@@ -10,5 +10,17 @@
         "configurations": {
             "use_cuda_rpc": true
         }
+    },
+    "AverageBatchCpuParameterServer": {
+        "ps_class": "AverageBatchParameterServer",
+        "configurations": {
+            "use_cuda_rpc": false
+        }
+    },
+    "AverageBatchCudaParameterServer": {
+        "ps_class": "AverageBatchParameterServer",
+        "configurations": {
+            "use_cuda_rpc": true
+        }
     }
 }

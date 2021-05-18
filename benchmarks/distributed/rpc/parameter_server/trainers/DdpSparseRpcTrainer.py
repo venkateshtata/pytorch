@@ -1,6 +1,7 @@
 import torch
 import torch.distributed as c10d
 import torch.nn as nn
+from servers.AverageBatchParameterServer import AverageBatchParameterServer
 from servers.AverageParameterServer import AverageParameterServer
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -11,7 +12,8 @@ from .RpcTrainerBase import RpcTrainerBase
 class DdpSparseRpcTrainer(DdpTrainerBase, RpcTrainerBase):
 
     PS_MAP = {
-        "AverageParameterServer": AverageParameterServer
+        "AverageParameterServer": AverageParameterServer,
+        "AverageBatchParameterServer": AverageBatchParameterServer
     }
 
     class HookState:
