@@ -27,8 +27,13 @@ std::string noop_name_fn(const PyInterpreter*) {
   return "<unloaded interpreter>";
 }
 
+void noop_decref_fn(const PyInterpreter*, PyObject*) {
+  // no-op
+}
+
 void PyInterpreter::disarm() noexcept {
   name_fn_ = &noop_name_fn;
+  decref_fn_ = &noop_decref_fn;
 }
 
 } // namespace impl
@@ -321,6 +326,12 @@ void TensorImpl::release_resources() {
   autograd_meta_.reset();
   if (storage_) {
     storage_ = {};
+  }
+  if (owns_pyobj_) {
+    TORCH_INTERNAL_ASSERT(pyobj_interpreter_ != nullptr);
+    TORCH_INTERNAL_ASSERT(pyobj_ != nullptr);
+    pyobj_interpreter_.load(std::memory_order_acquire)->decref(pyobj_);
+    pyobj_ = nullptr; // for safety
   }
 }
 
